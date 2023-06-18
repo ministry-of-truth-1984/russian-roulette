@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title> Russian Roulette </title>
+
+    <script>
+      const fields = {};
+
+      const langs = {
+        en : {
+          code: "EN",
+          fields: {
+            age: "Age",
+            emigrated: "Emigrated",
+            killed: "Killed",
+            ktw: "Killed-to-wounded",
+          },
+        },
+      };
+
+      const model = {
+        age: 21,
+        ktw: 3.0,
+        killed: 218_500,
+        emigrated: 900_000,
+      };
+
+      const styled = (s, x) => "<div style='" + s + "' >" + x + "</div>",
+            div = x => "<div>" + x + "</div>",
+            br = "<br/>",
+            url = (href, x) => "<a href=" + href + ">" + x + "</a>";
+
+      const daysDiff = (a,b) => (b-a) / 1000 / 60 / 60 / 24,
+            invasionStart = new Date(2022,02,24),
+            latestData = new Date(2023,06,16),
+            warDuration = daysDiff(invasionStart, latestData),
+
+            killed2wounded = d => model.ktw * d,
+            killed2casualties = d => d + killed2wounded(d),
+
+            ageBounds = [18,30],
+
+            uniformly = (min,max,total) => total / (max-min+1),
+
+            killedMales = age =>
+            age >= 18 && age <= 30 ? uniformly(18,30,model.killed) :
+            undefined,
+
+            emigratedMales = age =>
+            age >= 18 && age <= 40 ? uniformly(18,40,model.emigrated / 2) :
+            undefined,
+
+            lastCensusMalesBracket = age =>
+            age >= 15 && age < 20 ? 3_800_000 :
+            age >= 20 && age < 25 ? 3_450_000 :
+            age >= 25 && age < 30 ? 4_100_000 :
+            age >= 30 && age < 35 ? 6_040_000 :
+            undefined,
+
+            lastCensusMales = age => lastCensusMalesBracket(age) / 5;
+
+      function calculate() {
+        const emigrated = emigratedMales(model.age),
+              killed = killedMales(model.age),
+              bracket = lastCensusMalesBracket(model.age),
+              census = lastCensusMales(model.age),
+              eligible = census - emigrated,
+              totalCasualties = killed2casualties(model.killed),
+              casualties = killed2casualties(killed),
+              fractionCasualties = casualties / eligible,
+              dailyCasualties = casualties / warDuration,
+              annihilation = eligible / dailyCasualties,
+              remaining = annihilation - warDuration,
+              nextYearOdds = 365 / remaining,
+
+              sources = {
+                census:    "https://www.statista.com/statistics/1005416/population-russia-gender-age-group/",
+                killed:    "https://index.minfin.com.ua/en/russian-invading/casualties/",
+                emigrated: "https://en.wikipedia.org/wiki/Russian_emigration_following_the_Russian_invasion_of_Ukraine",
+              },
+
+              display = {
+                count: x => {
+                  const x2 = x.toFixed(2);
+                  return x == x2
+                    ? x
+                    : x2;
+                },
+                date: x => x.toLocaleDateString(undefined, { dateStyle: "medium"}),
+                days: x => display.count(x) + " days",
+                percentage: x => (x*100).toFixed(2) + "%",
+              },
+
+              summary = [
+                display.percentage(fractionCasualties) + " of already being a casualty",
+                display.percentage(nextYearOdds)       + " of becoming a casualty in the next 365 days",
+                "The computation is as follows:",
+              ];
+
+        steps = {
+          en: [
+            [ [ "As of", display.date(latestData), "the war had been going on for"],
+              [ display.date(latestData), "-", display.date(invasionStart), "=", display.days(warDuration)],
+            ],
+            [ [ "The number of emigrated people was", url(sources.emigrated, "reported in October"), "to approximately be"],
+              [ display.count(model.emigrated)],
+            ],
+            [ [ "assuming half are males having uniform distribution between ages 18 and 40"],
+              [ display.count(model.emigrated), "/ 2 / (40-18+1) =", display.count(emigrated)],
+            ],
+            [ [ "If we", url(sources.census, "look up"), "the bracket for the male population at the start of 2022 at age", model.age + ", divide by the bracket size:"],
+              [ display.count(bracket), "/ 5 = ", display.count(census)],
+            ],
+            [ [ "and subtract the emigrated, we find the count that was eligible for service"],
+              [ display.count(census), "-", display.count(emigrated), "=", display.count(eligible)],
+            ],
+            [ [ "With the total", url(sources.killed, "reported killed"), "being"],
+              [ display.count(model.killed)],
+            ],
+            [ [ "assuming a killed-to-wounded ratio of", model.ktw + ", then the total number of casualties (killed + wounded) is"],
+              [ model.killed, "* (1 + ", model.ktw + ") = ", display.count(totalCasualties)],
+            ],
+            [ [ "dividing this by the eligible for service we find the percentage that has become casualties"],
+              [ display.count(totalCasualties), "/", display.count(eligible), "=", display.percentage(fractionCasualties) ],
+            ],
+            [ [ "assuming casualties to be uniformly distributed between ages 18 and 30, we have"],
+              [ totalCasualties, "/ (30-18+1) =", display.count(casualties), "casualties of age", model.age],
+            ],
+            [ [ "which means the average daily casualties are"],
+              [ display.count(casualties), "/", display.days(warDuration), "=", display.count(dailyCasualties)],
+            ],
+            [ [ "Dividing the eligible for service by daily casualties yields how many days it takes until total annihilation"],
+              [ display.count(eligible), "/", display.count(dailyCasualties), "=", display.count(annihilation)],
+            ],
+            [ [ "from which we subtract the days the war has been going on for"],
+              [ display.count(annihilation), "-", display.count(warDuration), "=", display.count(remaining)],
+            ],
+            [ [ "Dividing one year by the remaining annihilation period we find out the fraction expected to become a casualty in the next 365 days"],
+              [ display.count(365), "/", display.count(remaining), "=", display.percentage(nextYearOdds)],
+            ],
+          ],
+        };
+
+        render(summary, steps[getLang()]);
+      };
+
+      function render(summary, steps) {
+        const mkSummary = ls => ls.map(div).join(" ");
+        mkWords = ws => ws.join(" "),
+        mkLines = ls => ls.map(l => div(mkWords(l))).join(" "),
+        mkSteps = ss => ss.map(s => div(mkLines(s) + br)).join(" "),
+
+        document.getElementById("summary").innerHTML = mkSummary(summary);
+        document.getElementById("steps").innerHTML = mkSteps(steps);
+      }
+
+      function field(id, width, bounds) {
+        const fields = document.getElementById("fields"),
+              div = document.createElement("div"),
+              lbl = document.createElement("div"),
+              f = document.createElement("input");
+
+        fields.setAttribute("style", "display: flex; flex-direction: column; width: fit-content");
+        div.setAttribute("style", "display: flex; justify-content: space-between");
+
+        f.setAttribute("id", id);
+        f.setAttribute("type", "number");
+        f.setAttribute("style", "text-align: right; margin-left: 50px; width: " + width);
+
+        if (bounds == undefined)
+          f.setAttribute("min", 0);
+        else {
+          f.setAttribute("min", bounds[0]);
+          f.setAttribute("max", bounds[1]);
+        }
+
+        f.value = model[id];
+        f.addEventListener("input", e => {
+          model[id] = Number.parseFloat(e.target.value);
+          calculate();
+        });
+
+        div.appendChild(lbl);
+        div.appendChild(f);
+        fields.appendChild(div);
+
+        return lbl;
+      }
+
+      function getLang() {
+        let hash = window.location.hash.substring(1);
+        return langs.hasOwnProperty(hash) ? hash : "en";
+      }
+
+      function init() {
+        const labels = {
+          age:       field("age", "40px", ageBounds),
+          emigrated: field("emigrated", "75px"),
+          killed:    field("killed", "75px"),
+          ktw:       field("ktw", "40px"),
+        };
+
+        const langSelect = document.getElementById("lang-select");
+
+        const mkLangOption = ([key, obj]) => {
+          const l = document.createElement("option");
+          l.innerText = obj.code;
+          l.setAttribute("value", key);
+          langSelect.appendChild(l);
+        };
+
+        Object.entries(langs).forEach(mkLangOption);
+
+        langSelect.addEventListener("input", e => document.location.hash = e.target.value);
+
+        function update() {
+          const l = getLang();
+          langSelect.value = l;
+          Object.entries(labels).forEach(([k,v]) => v.innerText = langs[l].fields[k]);
+          calculate();
+        }
+
+        window.addEventListener('popstate', update);
+        update();
+      }
+
+    </script>
+  </head>
+
+  <body onload = "init()">
+    This is a very early release, and in active development. Check back often for improvements in accuracy and more. If you'd like to contribute, visit the <a href="https://github.com/ministry-of-truth-1984/russian-roulette"> project page </a>.
+    <div id="lang">
+      <select id="lang-select"> </select>
+    </div>
+    <br/>
+    <div id="fields"> </div>
+    <br/>
+    <div id="summary"> </div>
+    <br/>
+    <div id="steps"> </div>
+  </body>
+</html>
