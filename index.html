@@ -21,7 +21,7 @@
       const model = {
         age: 21,
         ktw: 3.0,
-        killed: 218_500,
+        killed: 234_040,
         emigrated: 900_000,
       };
 
@@ -32,7 +32,7 @@
 
       const daysDiff = (a,b) => (b-a) / 1000 / 60 / 60 / 24,
             invasionStart = new Date(2022,02,24),
-            latestData = new Date(2023,06,16),
+            latestData = new Date(2023,07,09),
             warDuration = daysDiff(invasionStart, latestData),
 
             killed2wounded = d => model.ktw * d,
